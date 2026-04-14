@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { loadCatalog } from "../server/mysqlCatalog";
+import { loadCatalog } from "./_lib/mysqlCatalog";
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
@@ -26,8 +26,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
     res.status(200).json(result.rows);
   } catch (e) {
-    const details = e instanceof Error ? e.message : String(e);
-    res.status(500).json({ error: `Error inesperado en /api/products: ${details}` });
+    const details = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    const stack = e instanceof Error && e.stack ? e.stack.split("\n").slice(0, 3).join(" | ") : undefined;
+    res.status(500).json({
+      error: `Error inesperado en /api/products: ${details}`,
+      where: "api/products.ts",
+      stack,
+    });
   }
 }
 
