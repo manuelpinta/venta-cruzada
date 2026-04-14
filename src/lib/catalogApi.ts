@@ -6,6 +6,22 @@ import {
   catalogSearchCacheSet,
 } from "@/lib/catalogSearchCache";
 
+function normalizeApiError(raw: unknown): string {
+  if (raw == null) return "";
+  if (typeof raw === "string") return raw.trim();
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (typeof obj.message === "string" && obj.message.trim()) return obj.message.trim();
+    if (typeof obj.error === "string" && obj.error.trim()) return obj.error.trim();
+    try {
+      return JSON.stringify(raw);
+    } catch {
+      return String(raw);
+    }
+  }
+  return String(raw);
+}
+
 function shouldLogCatalogSearch(): boolean {
   return (
     import.meta.env.DEV || import.meta.env.VITE_CATALOG_SEARCH_LOG === "true"
@@ -105,7 +121,7 @@ export async function fetchCatalog(country: CountryCode): Promise<Product[]> {
     let details = "";
     try {
       const payload = (await res.json()) as { error?: unknown };
-      if (payload?.error != null) details = String(payload.error);
+      if (payload?.error != null) details = normalizeApiError(payload.error);
     } catch {
       // ignore body parse errors
     }
@@ -154,7 +170,7 @@ export async function fetchCatalogSearch(country: CountryCode, query: string): P
     let details = "";
     try {
       const payload = (await res.json()) as { error?: unknown };
-      if (payload?.error != null) details = String(payload.error);
+      if (payload?.error != null) details = normalizeApiError(payload.error);
     } catch {
       // ignore body parse errors
     }
