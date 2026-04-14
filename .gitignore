@@ -1,0 +1,35 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+
+# Secretos y entornos locales (nunca subir credenciales)
+.env
+.env.*
+!.env.example
+*.local
+
+# Editor directories and files
+.cursor
+.claude
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Archivos temporales / borradores locales
+*.tmp
+*.bak

@@ -1,0 +1,15 @@
+-- Plantilla para alta manual en el esquema actual (auth propio por employee_number + password_hash).
+-- Genera un UUID cualquiera y asigna país/rol.
+--
+-- `employee_number` puede omitirse (NULL): el usuario lo cargará en la app en /completar-empleado.
+
+-- INSERT INTO public.profiles (id, country_code, role, employee_number)
+-- VALUES (
+--   gen_random_uuid(),
+--   'PC',
+--   'editor',
+--   '9000'
+-- );
+--
+-- Luego define password hash con:
+-- SELECT public.set_profile_password('9000', 'TuPasswordTemporal');
