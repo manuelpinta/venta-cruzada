@@ -8,8 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
   /** Base URL del API que expone GET /api/products?country= (catálogo MySQL). Vacío = mock local. */
   readonly VITE_CATALOG_API_URL?: string;
-  /** `true` = catálogo mock sin llamar al API (útil con `npm run dev:client`). */
-  readonly VITE_CATALOG_USE_MOCK?: string;
   /** Opcional: clave JSON del código/SKU si no usas sku/CveAsoc por defecto. */
   readonly VITE_CATALOG_SKU_FIELD?: string;
   /** Opcional: clave JSON del nombre si no usas name/Descrip por defecto. */

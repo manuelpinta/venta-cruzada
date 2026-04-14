@@ -133,9 +133,14 @@ export async function loadCatalog(
     return { ok: true, rows: body };
   } catch (e) {
     console.error("[mysqlCatalog]", e);
+    const details =
+      e instanceof Error && e.message ? `: ${e.message}` : "";
     return {
       ok: false,
-      failure: { status: 500, body: { error: "Error al leer el catálogo MySQL" } },
+      failure: {
+        status: 500,
+        body: { error: `Error al leer el catálogo MySQL${details}` },
+      },
     };
   } finally {
     if (conn) {

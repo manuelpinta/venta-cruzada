@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n vite,api \"vite\" \"tsx server/dev-api.ts\"",
-    "dev:client": "cross-env VITE_CATALOG_USE_MOCK=true vite",
     "dev:vercel": "vercel dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",

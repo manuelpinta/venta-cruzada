@@ -27,7 +27,6 @@ Guía única de todo lo que **no viene en el código** y debes preparar en tu en
 | `VITE_SUPABASE_URL` | Sí, si quieres login y guardar recomendaciones en Supabase | URL del proyecto: Supabase → **Project Settings** → **API** → **Project URL** |
 | `VITE_SUPABASE_ANON_KEY` o `VITE_SUPABASE_PUBLISHABLE_KEY` | Igual que arriba | Clave **pública**: **anon** (JWT) o **publishable** (`sb_publishable_...`). **No** uses la *secret* ni `service_role` aquí. |
 | `VITE_CATALOG_API_URL` | No | Solo si el catálogo está en **otro** dominio. Si la omites: en **producción** → `/api/products` en Vercel; en **desarrollo** → Vite proxifica a `server/dev-api.ts` (`npm run dev`). |
-| `VITE_CATALOG_USE_MOCK` | No | Pon `true` para catálogo mock sin MySQL (p. ej. `npm run dev:client`). |
 | `VITE_CATALOG_SEARCH_CACHE_TTL_MS` | No | Caché en el navegador de búsquedas `?q=` (ms; por defecto 300000 = 5 min; `0` = sin caché). |
 | `VITE_CATALOG_SEARCH_LOG` | No | `true` = en producción también escribe en consola `[catalog search]` (tiempos y aciertos de caché). En `npm run dev` ya se loguea. |
 
@@ -132,7 +131,6 @@ El front **no** necesita `VITE_CATALOG_API_URL` si despliegas solo en Vercel: en
 ### 4.2 Desarrollo local (sin cuenta Vercel)
 
 - **`npm run dev`**: arranca **Vite** y **`server/dev-api.ts`** (Node). El navegador pide `GET /api/products` al mismo origen; Vite **reenvía** `/api` al puerto local (por defecto **8787**). Rellena las variables `MYSQL_*` del §4.1 en `.env.local` (y Supabase con `VITE_*`). **No hace falta** `vercel link` ni subir nada.
-- **`npm run dev:client`**: solo Vite, catálogo **mock** (rápido para maquetar).
 - **`npm run dev:vercel`**: opcional; usa la CLI de Vercel si quieres imitar su runtime (puede pedir login/proyecto).
 - **`VITE_CATALOG_API_URL`**: útil para apuntar a un despliegue ya publicado sin levantar MySQL en tu PC.
 

@@ -1,6 +1,5 @@
 import type { CountryCode } from "@/data/countries";
 import type { Product } from "@/data/types";
-import { products as mockProducts } from "@/data/mockData";
 import {
   catalogSearchCacheGet,
   catalogSearchCacheKey,
@@ -78,14 +77,12 @@ function parseCatalogResponse(data: unknown, country: CountryCode): Product[] {
 /**
  * Resuelve la base del API de catálogo.
  * - `VITE_CATALOG_API_URL`: otro dominio (p. ej. preview en Vercel).
- * - `VITE_CATALOG_USE_MOCK=true`: datos mock (solo UI; usa con `npm run dev:client`).
  * - Producción sin URL explícita: mismo origen → `/api/products` (Vercel).
  * - Desarrollo sin mock: mismo origen → Vite proxifica a `server/dev-api.ts` (`npm run dev`).
  */
-function resolveCatalogApiBase(): string | undefined {
+function resolveCatalogApiBase(): string {
   const explicit = import.meta.env.VITE_CATALOG_API_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");
-  if (import.meta.env.VITE_CATALOG_USE_MOCK === "true") return undefined;
   if (import.meta.env.PROD) return "";
   return "";
 }
@@ -95,9 +92,6 @@ function resolveCatalogApiBase(): string | undefined {
  */
 export async function fetchCatalog(country: CountryCode): Promise<Product[]> {
   const base = resolveCatalogApiBase();
-  if (base === undefined) {
-    return mockProducts.map((p) => ({ ...p, countryCode: country }));
-  }
 
   const url =
     base === ""
@@ -108,7 +102,15 @@ export async function fetchCatalog(country: CountryCode): Promise<Product[]> {
   });
 
   if (!res.ok) {
-    throw new Error(`Catálogo (${res.status}): ${res.statusText}`);
+    let details = "";
+    try {
+      const payload = (await res.json()) as { error?: unknown };
+      if (payload?.error != null) details = String(payload.error);
+    } catch {
+      // ignore body parse errors
+    }
+    const suffix = details || res.statusText || "Error desconocido";
+    throw new Error(`Catálogo (${res.status}): ${suffix}`);
   }
 
   const data: unknown = await res.json();
@@ -143,27 +145,24 @@ export async function fetchCatalogSearch(country: CountryCode, query: string): P
   const base = resolveCatalogApiBase();
   let out: Product[];
 
-  if (base === undefined) {
-    const qq = q.toLowerCase();
-    out = mockProducts
-      .map((p) => ({ ...p, countryCode: country }))
-      .filter(
-        (p) =>
-          p.sku.toLowerCase().includes(qq) ||
-          p.name.toLowerCase().includes(qq)
-      );
-  } else {
-    const url =
-      base === ""
-        ? `/api/products?country=${encodeURIComponent(country)}&q=${encodeURIComponent(q)}`
-        : `${base}/api/products?country=${encodeURIComponent(country)}&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) {
-      throw new Error(`Búsqueda catálogo (${res.status}): ${res.statusText}`);
+  const url =
+    base === ""
+      ? `/api/products?country=${encodeURIComponent(country)}&q=${encodeURIComponent(q)}`
+      : `${base}/api/products?country=${encodeURIComponent(country)}&q=${encodeURIComponent(q)}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) {
+    let details = "";
+    try {
+      const payload = (await res.json()) as { error?: unknown };
+      if (payload?.error != null) details = String(payload.error);
+    } catch {
+      // ignore body parse errors
     }
-    const data: unknown = await res.json();
-    out = parseCatalogResponse(data, country);
+    const suffix = details || res.statusText || "Error desconocido";
+    throw new Error(`Búsqueda catálogo (${res.status}): ${suffix}`);
   }
+  const data: unknown = await res.json();
+  out = parseCatalogResponse(data, country);
 
   catalogSearchCacheSet(cacheKey, out);
 

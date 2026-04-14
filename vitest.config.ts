@@ -4,9 +4,6 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    "import.meta.env.VITE_CATALOG_USE_MOCK": JSON.stringify("true"),
-  },
   test: {
     environment: "jsdom",
     globals: true,

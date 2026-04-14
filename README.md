@@ -31,7 +31,7 @@ La aplicación implementa el flujo principal:
 - **Login (`/login`)** con `employee_number` + `password_hash` en `profiles` (sin Supabase Auth).
 - **Reglas básicas**: máximo 4 recomendaciones, sin duplicados, sin auto-recomendación.
 - **Datos**:
-  - **Catálogo:** `GET` a `VITE_CATALOG_API_URL` + `/api/products?country=XX` si defines la variable; si no, **mock** (`src/data/mockData.ts`).
+  - **Catálogo:** `GET` a `VITE_CATALOG_API_URL` + `/api/products?country=XX` si defines la variable; si no, mismo origen `/api/products`.
 - **Recomendaciones guardadas:** tabla `cross_sell_recommendations` en Supabase vía RPC (`app_list_recommendations`, `app_add_recommendation`, `app_remove_recommendation`) para no depender de `supabase.auth`.
 - Ejecuta migraciones base + auth propio:
   - [`supabase/migrations/20260401120000_cross_sell_recommendations_sku_and_profiles.sql`](supabase/migrations/20260401120000_cross_sell_recommendations_sku_and_profiles.sql)

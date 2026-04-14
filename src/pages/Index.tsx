@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Timer, Filter, RefreshCw } from "lucide-react";
+import { Search, Timer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
@@ -32,7 +32,6 @@ export default function Index() {
     catalogTopEmpty,
     searchProducts,
     recommendations,
-    refreshRecommendations,
     loading,
     error,
   } = useProductCatalog();
@@ -257,32 +256,6 @@ export default function Index() {
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 pb-3">
             <h3 className="text-xl font-bold text-slate-900">Listado de Productos</h3>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-slate-200 bg-white text-slate-700"
-                onClick={() => {
-                  if (statusFilter === "all") setStatusFilter("pending");
-                  else if (statusFilter === "pending") setStatusFilter("partial");
-                  else if (statusFilter === "partial") setStatusFilter("complete");
-                  else setStatusFilter("all");
-                }}
-              >
-                <Filter className="h-3.5 w-3.5 mr-1.5" aria-hidden />
-                Filtrar
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-blue-700 hover:bg-blue-800 text-white"
-                onClick={() => void refreshRecommendations()}
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" aria-hidden />
-                Actualizar
-              </Button>
-            </div>
           </div>
 
           <div className="relative space-y-1 lg:hidden">

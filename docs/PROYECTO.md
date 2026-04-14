@@ -57,10 +57,10 @@ Es decir: el catálogo “sale de ahí” (MySQL); **lo que el usuario confirma 
 
 ---
 
-## Datos hoy en el repo: mock vs Supabase
+## Datos hoy en el repo
 
-- **Sin variables `VITE_SUPABASE_*`:** mock en `src/data/mockData.ts`.
-- **Con Supabase (estado actual del código):** productos **y** recomendaciones se cargan/guardan en Supabase para desarrollo ágil. Migrar al modelo de arriba implica **cambiar la capa de datos** para leer productos desde tu API/MySQL y seguir escribiendo recomendaciones solo en Supabase.
+- Catálogo desde API/MySQL (`/api/products`).
+- Recomendaciones en Supabase vía RPC.
 
 **Import CSV en Supabase:** útil mientras el catálogo viva ahí; si el catálogo pasa a ser solo MySQL, el import sería hacia MySQL o el job que alimente tu API, no necesariamente la tabla `products` de Supabase (salvo que mantengas una réplica mínima para IDs/FKs).
 

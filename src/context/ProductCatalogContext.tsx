@@ -10,7 +10,6 @@ import {
 import type { CountryCode } from "@/data/countries";
 import { getStoredCountry, setStoredCountry } from "@/data/countries";
 import type { Product, RecommendationGroup } from "@/data/types";
-import { initialRecommendations } from "@/data/mockData";
 import { fetchCatalog, fetchCatalogSearch } from "@/lib/catalogApi";
 import { isSupabaseConfigured, requireSupabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -161,7 +160,7 @@ export function ProductCatalogProvider({ children }: { children: ReactNode }) {
 
   const refreshRecommendations = useCallback(async () => {
     if (!isSupabaseConfigured()) {
-      setRecommendations(initialRecommendations);
+      setRecommendations([]);
       return;
     }
     if (!user || !profile) {
