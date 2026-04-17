@@ -13,11 +13,18 @@ import { supabase } from "@/lib/supabase";
 
 export type UserRole = "editor" | "admin";
 
+/** Mitad inferior/superior del listado de campaña en `profiles`. */
+export type CatalogSegment = "top25" | "rest";
+
 export interface UserProfile {
   id: string;
   country_code: CountryCode;
   role: UserRole;
+  /** Nómina / RH (opcional). */
   employee_number: string | null;
+  /** Nombre mostrado (ej. sucursal); login con este texto o con employee_number. */
+  display_name: string | null;
+  catalog_segment: CatalogSegment;
 }
 
 export interface AppUser {
@@ -39,23 +46,32 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-const AUTH_USERS_TABLE = "profiles";
 const SESSION_KEY = "cross-sell:auth-session";
 
 type UserRow = {
   id?: string | number;
   employee_number?: string | null;
+  display_name?: string | null;
   country_code?: CountryCode | null;
   role?: UserRole | null;
+  catalog_segment?: string | null;
 };
 
 type StoredSession = {
   id: string;
+  /** Etiqueta en cabecera: display_name ?? employee_number */
   username: string;
   country_code: CountryCode;
   role: UserRole;
-  employee_number: string;
+  employee_number: string | null;
+  display_name: string | null;
+  catalog_segment: CatalogSegment;
 };
+
+function normalizeCatalogSegment(raw: unknown): CatalogSegment {
+  if (raw === "rest") return "rest";
+  return "top25";
+}
 
 function buildStateFromStored(s: StoredSession): { user: AppUser; profile: UserProfile } {
   return {
@@ -65,6 +81,8 @@ function buildStateFromStored(s: StoredSession): { user: AppUser; profile: UserP
       country_code: s.country_code,
       role: s.role,
       employee_number: s.employee_number,
+      display_name: s.display_name ?? null,
+      catalog_segment: s.catalog_segment,
     },
   };
 }
@@ -72,16 +90,29 @@ function buildStateFromStored(s: StoredSession): { user: AppUser; profile: UserP
 function parseStoredSession(raw: string | null): StoredSession | null {
   if (!raw) return null;
   try {
-    const obj = JSON.parse(raw) as Partial<StoredSession>;
-    if (!obj.id || !obj.username || !obj.country_code || !obj.role || !obj.employee_number) {
+    const obj = JSON.parse(raw) as Partial<StoredSession> & { employee_number?: unknown };
+    if (!obj.id || !obj.country_code || !obj.role) {
       return null;
     }
+    const seg = normalizeCatalogSegment((obj as Partial<StoredSession>).catalog_segment);
+    const emp =
+      obj.employee_number != null && String(obj.employee_number).trim() !== ""
+        ? String(obj.employee_number)
+        : null;
+    const disp =
+      obj.display_name != null && String(obj.display_name).trim() !== ""
+        ? String(obj.display_name)
+        : null;
+    const username = String(obj.username ?? disp ?? emp ?? "");
+    if (!username) return null;
     return {
       id: String(obj.id),
-      username: String(obj.username),
+      username,
       country_code: obj.country_code as CountryCode,
       role: (obj.role as UserRole) ?? "editor",
-      employee_number: String(obj.employee_number),
+      employee_number: emp,
+      display_name: disp,
+      catalog_segment: seg,
     };
   } catch {
     return null;
@@ -110,31 +141,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!supabase || !user) return;
-    const { data, error } = await supabase
-      .from(AUTH_USERS_TABLE)
-      .select("id, employee_number, country_code, role")
-      .eq("id", user.id)
-      .maybeSingle<UserRow>();
+    const { data: raw, error } = await supabase.rpc("app_get_profile", { p_id: user.id });
+    const data = (Array.isArray(raw) ? raw[0] : raw) as UserRow | null | undefined;
 
     if (error || !data || !data.country_code) return;
 
-    const id = String(data.id ?? data.employee_number ?? user.id);
-    const employeeNumber = String(data.employee_number ?? user.username);
+    const id = String(data.id ?? user.id);
+    const emp = data.employee_number != null && String(data.employee_number).trim() !== "" ? String(data.employee_number) : null;
+    const disp = data.display_name != null && String(data.display_name).trim() !== "" ? String(data.display_name) : null;
+    const label = disp ?? emp ?? user.username;
+    const seg = normalizeCatalogSegment(data.catalog_segment);
     const nextProfile: UserProfile = {
       id,
       country_code: data.country_code as CountryCode,
       role: (data.role as UserRole) ?? "editor",
-      employee_number: employeeNumber,
+      employee_number: emp,
+      display_name: disp,
+      catalog_segment: seg,
     };
-    const nextUser: AppUser = { id, username: employeeNumber };
+    const nextUser: AppUser = { id, username: label };
     setUser(nextUser);
     setProfile(nextProfile);
     const toStore: StoredSession = {
       id,
-      username: employeeNumber,
+      username: label,
       country_code: nextProfile.country_code,
       role: nextProfile.role,
-      employee_number: employeeNumber,
+      employee_number: emp,
+      display_name: disp,
+      catalog_segment: seg,
     };
     window.localStorage.setItem(SESSION_KEY, JSON.stringify(toStore));
   }, [user]);
@@ -144,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalized =
       normalizeEmployeeNumber(username) || normalizeLoginUsername(username);
     if (!normalized) {
-      return { error: new Error("Indica tu usuario (número de empleado).") };
+      return { error: new Error("Indica tu usuario (nombre de sucursal o nómina).") };
     }
     if (!password.trim()) {
       return { error: new Error("Indica tu contraseña.") };
@@ -171,30 +206,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return { error: new Error(error.message) };
       }
-      if (!row || !row.employee_number) {
+      const emp = row.employee_number != null && String(row.employee_number).trim() !== "" ? String(row.employee_number) : null;
+      const disp = row.display_name != null && String(row.display_name).trim() !== "" ? String(row.display_name) : null;
+      if (!row || (!emp && !disp)) {
         return { error: new Error("Usuario o contraseña inválidos.") };
       }
       if (!row.country_code) {
         return { error: new Error("Usuario sin país asignado.") };
       }
 
-      const id = String(row.id ?? row.employee_number);
-      const employeeNumber = String(row.employee_number);
-      const nextUser: AppUser = { id, username: employeeNumber };
+      const id = String(row.id ?? emp ?? disp);
+      const label = disp ?? emp ?? "";
+      const nextUser: AppUser = { id, username: label };
+      const seg = normalizeCatalogSegment(row.catalog_segment);
       const nextProfile: UserProfile = {
         id,
         country_code: row.country_code as CountryCode,
         role: (row.role as UserRole) ?? "editor",
-        employee_number: employeeNumber,
+        employee_number: emp,
+        display_name: disp,
+        catalog_segment: seg,
       };
       setUser(nextUser);
       setProfile(nextProfile);
       const toStore: StoredSession = {
         id,
-        username: employeeNumber,
+        username: label,
         country_code: nextProfile.country_code,
         role: nextProfile.role,
-        employee_number: employeeNumber,
+        employee_number: emp,
+        display_name: disp,
+        catalog_segment: seg,
       };
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(toStore));
       return { error: null };
@@ -218,10 +260,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const saveProfile = useCallback(
     async (country: CountryCode, role: UserRole = "editor") => {
       if (!supabase || !user) return { error: new Error("No hay sesión") };
-      const { error } = await supabase
-        .from(AUTH_USERS_TABLE)
-        .update({ country_code: country, role })
-        .eq("id", user.id);
+      const { error } = await supabase.rpc("app_update_profile_country_role", {
+        p_id: user.id,
+        p_country_code: country,
+        p_role: role,
+      });
       if (error) return { error: error as Error };
       await refreshProfile();
       return { error: null };
@@ -236,10 +279,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!normalized) {
         return { error: new Error("Indica tu número de empleado") };
       }
-      const { error } = await supabase
-        .from(AUTH_USERS_TABLE)
-        .update({ employee_number: normalized })
-        .eq("id", user.id);
+      const { error } = await supabase.rpc("app_update_profile_employee", {
+        p_id: user.id,
+        p_employee_number: normalized,
+      });
       if (error) return { error: error as Error };
       await refreshProfile();
       return { error: null };

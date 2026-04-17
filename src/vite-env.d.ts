@@ -16,6 +16,10 @@ interface ImportMetaEnv {
   readonly VITE_CATALOG_SEARCH_CACHE_TTL_MS?: string;
   /** `true` = log en consola de búsquedas/tiempos también en producción. */
   readonly VITE_CATALOG_SEARCH_LOG?: string;
+  /** @deprecated Sin uso; el plazo es fijo vía `VITE_FORM_DEADLINE_END_AT`. */
+  readonly VITE_FORM_DEADLINE_DAYS?: string;
+  /** Fin de campaña (ISO 8601). Default en código: 26 abr 2026 23:59:59.999 hora centro MX. */
+  readonly VITE_FORM_DEADLINE_END_AT?: string;
   /** URL del portal de soporte / tickets (botón "Contactar a soporte" en cabecera). */
   readonly VITE_SUPPORT_URL?: string;
   /** Compat: misma función que `VITE_SUPPORT_URL` si ya usas convención Next en `.env`. */

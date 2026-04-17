@@ -15,6 +15,7 @@ export default function ProductDetail() {
     addRecommendation,
     removeRecommendation,
     searchProductsRemote,
+    isSkuInMySegment,
     loading,
     error,
   } = useProductCatalog();
@@ -49,6 +50,21 @@ export default function ProductDetail() {
           <p className="text-muted-foreground">Producto no encontrado</p>
           <Button variant="outline" onClick={() => navigate("/")}>
             Volver
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isSkuInMySegment(product.sku)) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="text-center space-y-3 max-w-md">
+          <p className="text-slate-700 text-sm">
+            Este producto no forma parte de tu lista asignada.
+          </p>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Volver al listado
           </Button>
         </div>
       </div>

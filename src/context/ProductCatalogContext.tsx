@@ -12,7 +12,10 @@ import { getStoredCountry, setStoredCountry } from "@/data/countries";
 import type { Product, RecommendationGroup } from "@/data/types";
 import { fetchCatalog, fetchCatalogSearch } from "@/lib/catalogApi";
 import { isSupabaseConfigured, requireSupabase } from "@/lib/supabase";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, type CatalogSegment } from "@/context/AuthContext";
+
+export const TOP_CAMPAIGN_SKU_COUNT = 50;
+export const TOP_SEGMENT_COUNT = 25;
 
 function mapInsertError(message: string): string {
   const m = message.toLowerCase();
@@ -40,6 +43,10 @@ interface CatalogState {
   setCountryCode: (c: CountryCode) => void;
   products: Product[];
   topProducts: Product[];
+  homeProducts: Product[];
+  catalogSegment: CatalogSegment;
+  /** Sin Supabase, siempre true. */
+  isSkuInMySegment: (sku: string) => boolean;
   /** Supabase configurado y la tabla `top_product_skus` no tiene filas para el país (nada que mostrar en home). */
   catalogTopEmpty: boolean;
   loading: boolean;
@@ -119,7 +126,7 @@ export function ProductCatalogProvider({ children }: { children: ReactNode }) {
     };
   }, [countryCode]);
 
-  // Top 50 por país desde Supabase (MySQL solo aporta el catálogo completo para búsqueda / nombres).
+  // `top_product_skus` en Supabase; MySQL sigue siendo el catálogo para búsqueda al agregar recs.
   useEffect(() => {
     if (!isSupabaseConfigured()) {
       setTopSkuRows([]);
@@ -350,14 +357,19 @@ export function ProductCatalogProvider({ children }: { children: ReactNode }) {
     [countryCode, searchProducts]
   );
 
+  const campaignTopRows = useMemo(
+    () => topSkuRows.slice(0, TOP_CAMPAIGN_SKU_COUNT),
+    [topSkuRows]
+  );
+
   const topProducts = useMemo(() => {
     if (!isSupabaseConfigured()) {
       return products
         .filter((p) => p.isTop)
         .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
     }
-    if (topSkuRows.length === 0) return [];
-    return topSkuRows.map((row) => {
+    if (campaignTopRows.length === 0) return [];
+    return campaignTopRows.map((row) => {
       const base = productBySku.get(row.sku);
       const label =
         base?.name?.trim() || row.display_name?.trim() || row.sku;
@@ -378,7 +390,55 @@ export function ProductCatalogProvider({ children }: { children: ReactNode }) {
         rank: row.rank,
       };
     });
-  }, [products, topSkuRows, productBySku, countryCode]);
+  }, [products, campaignTopRows, productBySku, countryCode]);
+
+  const top25SkuSet = useMemo(
+    () => new Set(campaignTopRows.slice(0, TOP_SEGMENT_COUNT).map((r) => r.sku)),
+    [campaignTopRows]
+  );
+
+  const restSegmentSkuSet = useMemo(
+    () =>
+      new Set(
+        campaignTopRows.slice(TOP_SEGMENT_COUNT, TOP_CAMPAIGN_SKU_COUNT).map((r) => r.sku)
+      ),
+    [campaignTopRows]
+  );
+
+  const catalogSegment: CatalogSegment =
+    isSupabaseConfigured() && profile?.catalog_segment ? profile.catalog_segment : "top25";
+
+  const homeProducts = useMemo(() => {
+    if (!isSupabaseConfigured()) {
+      return products
+        .filter((p) => p.isTop)
+        .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+    }
+    if (campaignTopRows.length === 0) return [];
+
+    if (catalogSegment === "rest") {
+      return topProducts.slice(TOP_SEGMENT_COUNT, TOP_CAMPAIGN_SKU_COUNT);
+    }
+
+    return topProducts.slice(0, TOP_SEGMENT_COUNT);
+  }, [
+    isSupabaseConfigured,
+    campaignTopRows.length,
+    catalogSegment,
+    products,
+    topProducts,
+  ]);
+
+  const isSkuInMySegment = useCallback(
+    (sku: string) => {
+      const k = sku.trim();
+      if (!isSupabaseConfigured()) return true;
+      if (campaignTopRows.length === 0) return false;
+      if (catalogSegment === "top25") return top25SkuSet.has(k);
+      return restSegmentSkuSet.has(k);
+    },
+    [isSupabaseConfigured, campaignTopRows.length, catalogSegment, top25SkuSet, restSegmentSkuSet]
+  );
 
   const catalogTopEmpty =
     isSupabaseConfigured() && !topSkuLoading && topSkuRows.length === 0;
@@ -391,6 +451,9 @@ export function ProductCatalogProvider({ children }: { children: ReactNode }) {
       setCountryCode,
       products,
       topProducts,
+      homeProducts,
+      catalogSegment,
+      isSkuInMySegment,
       catalogTopEmpty,
       loading: loadingPage,
       error,
@@ -408,6 +471,9 @@ export function ProductCatalogProvider({ children }: { children: ReactNode }) {
       setCountryCode,
       products,
       topProducts,
+      homeProducts,
+      catalogSegment,
+      isSkuInMySegment,
       catalogTopEmpty,
       loadingPage,
       error,

@@ -7,13 +7,13 @@ import { SupportLinkButton } from "@/components/SupportLinkButton";
 import { useProductCatalog } from "@/context/ProductCatalogContext";
 import { useAuth } from "@/context/AuthContext";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { useCampaignDeadline } from "@/lib/campaignDeadline";
 import { COUNTRY_CODES, COUNTRY_LABELS, type CountryCode } from "@/data/countries";
 
 type StatusFilter = "all" | "pending" | "partial" | "complete";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_DISPLAY_LIMIT = 100;
-const FORM_DEADLINE_DAYS = 30;
 
 function formatRemaining(ms: number): string {
   if (ms <= 0) return "0d 00h 00m";
@@ -28,7 +28,8 @@ export default function Index() {
   const {
     countryCode,
     setCountryCode,
-    topProducts,
+    homeProducts,
+    isSkuInMySegment,
     catalogTopEmpty,
     searchProducts,
     recommendations,
@@ -36,6 +37,7 @@ export default function Index() {
     error,
   } = useProductCatalog();
   const { user, profile, signOut } = useAuth();
+  const { remainingMs } = useCampaignDeadline();
 
   /** Con perfil en Supabase, el mercado es solo el del perfil (catálogo, top y recs de ese país). */
   const countryLocked = isSupabaseConfigured() && !!profile?.country_code;
@@ -43,35 +45,11 @@ export default function Index() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [deadlineAt, setDeadlineAt] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [query]);
-
-  useEffect(() => {
-    if (!user) {
-      setDeadlineAt(null);
-      return;
-    }
-    const storageKey = `cross-sell:deadline:${user.id}`;
-    const saved = window.localStorage.getItem(storageKey);
-    const parsed = saved ? Number(saved) : NaN;
-    if (Number.isFinite(parsed) && parsed > 0) {
-      setDeadlineAt(parsed);
-      return;
-    }
-    const created = Date.now() + FORM_DEADLINE_DAYS * 24 * 60 * 60 * 1000;
-    window.localStorage.setItem(storageKey, String(created));
-    setDeadlineAt(created);
-  }, [user]);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 30000);
-    return () => window.clearInterval(id);
-  }, []);
 
   const recCountBySku = useMemo(() => {
     const m = new Map<string, number>();
@@ -83,8 +61,11 @@ export default function Index() {
 
   const baseList = useMemo(() => {
     const q = debouncedQuery.trim();
-    return q.length >= 2 ? searchProducts(q) : topProducts;
-  }, [debouncedQuery, topProducts, searchProducts]);
+    if (q.length >= 2) {
+      return searchProducts(q).filter((p) => isSkuInMySegment(p.sku));
+    }
+    return homeProducts;
+  }, [debouncedQuery, homeProducts, searchProducts, isSkuInMySegment]);
 
   const productsWithCounts = useMemo(() => {
     return baseList.map((p) => ({
@@ -109,20 +90,19 @@ export default function Index() {
   const partial = productsWithCounts.filter((p) => p.recCount > 0 && p.recCount < 3).length;
   const pending = productsWithCounts.filter((p) => p.recCount === 0).length;
   const pct = total > 0 ? Math.round((complete / total) * 100) : 0;
-  const remainingMs = deadlineAt != null ? deadlineAt - now : null;
-  const deadlineLabel = remainingMs != null ? formatRemaining(remainingMs) : null;
-  const deadlineExpired = remainingMs != null && remainingMs <= 0;
+  const deadlineLabel = formatRemaining(remainingMs);
 
   const debouncePending = query.trim() !== debouncedQuery.trim();
   const showSearchUpdating = debouncePending && query.trim().length >= 2;
+
+  const userDisplayName =
+    profile?.display_name?.trim() || user?.username?.trim() || profile?.employee_number?.trim() || "";
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-slate-50/90 backdrop-blur">
         <div className="mx-auto max-w-7xl px-5 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <h2 className="text-blue-800 font-extrabold tracking-tight text-lg">Admin Retail</h2>
-            <div className="h-5 w-px bg-slate-300" />
             <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate">Venta Cruzada PDV</h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -159,9 +139,9 @@ export default function Index() {
               </div>
             )}
             {isSupabaseConfigured() && user && (
-              <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200 bg-white" onClick={() => void signOut()}>
-                <span className="truncate max-w-[10rem] inline-block align-bottom">
-                  {profile?.employee_number ?? user.username ?? "Cuenta"}
+              <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200 bg-white max-w-[min(100vw-12rem,18rem)]" onClick={() => void signOut()}>
+                <span className="truncate inline-block align-bottom" title={userDisplayName || undefined}>
+                  {userDisplayName || "Cuenta"}
                 </span>
                 {profile ? ` · ${COUNTRY_LABELS[profile.country_code]}` : ""} · Salir
               </Button>
@@ -195,19 +175,16 @@ export default function Index() {
                 style={{ width: `${pct}%` }}
               />
             </div>
-            {deadlineLabel && (
-              <div className="flex items-center gap-3 sm:gap-4 rounded-xl border border-slate-100 bg-slate-50 p-3.5 sm:p-4">
-                <div className="rounded-lg bg-blue-100 p-2.5">
-                  <Timer className="h-5 w-5 text-blue-700" aria-hidden />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Tiempo restante</p>
-                  <p className={`text-sm sm:text-base font-semibold ${deadlineExpired ? "text-destructive" : "text-slate-900"}`}>
-                    {deadlineExpired ? "Tiempo agotado para completar el formulario." : deadlineLabel}
-                  </p>
-                </div>
+            <div className="flex items-center gap-3 sm:gap-4 rounded-xl border border-slate-100 bg-slate-50 p-3.5 sm:p-4">
+              <div className="rounded-lg bg-blue-100 p-2.5">
+                <Timer className="h-5 w-5 text-blue-700" aria-hidden />
               </div>
-            )}
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Tiempo restante</p>
+                <p className="text-sm sm:text-base font-semibold text-slate-900">{deadlineLabel}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Hasta el 26 abr 2026 · 23:59 (centro MX)</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -254,7 +231,7 @@ export default function Index() {
         </section>
 
         <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="border-b border-slate-200 pb-3">
             <h3 className="text-xl font-bold text-slate-900">Listado de Productos</h3>
           </div>
 
