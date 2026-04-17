@@ -41,7 +41,7 @@ export default function Login() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-blue-700">Admin Retail</p>
+          <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-blue-700">Pintacomex</p>
           <h1 className="text-2xl font-extrabold text-slate-900">Venta Cruzada PDV</h1>
           <p className="text-xs text-slate-500">Ingresa con tu número de empleado y contraseña asignada.</p>
         </div>

@@ -1,15 +1,14 @@
--- Plantilla para alta manual en el esquema actual (auth propio por employee_number + password_hash).
--- Genera un UUID cualquiera y asigna país/rol.
+-- Plantilla: perfiles sin Supabase Auth (migración 20260417170000).
+-- `id` = gen_random_uuid(); login vía app_login_simple + password_hash.
 --
--- `employee_number` puede omitirse (NULL): el usuario lo cargará en la app en /completar-empleado.
-
--- INSERT INTO public.profiles (id, country_code, role, employee_number)
+-- INSERT INTO public.profiles (id, country_code, role, employee_number, display_name, catalog_segment)
 -- VALUES (
 --   gen_random_uuid(),
 --   'PC',
 --   'editor',
---   '9000'
+--   NULL,
+--   'Mi Sucursal',
+--   'top25'
 -- );
 --
--- Luego define password hash con:
--- SELECT public.set_profile_password('9000', 'TuPasswordTemporal');
+-- SELECT public.set_profile_password('Mi Sucursal', 'Pintacomex2k');

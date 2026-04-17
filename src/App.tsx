@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProductCatalogProvider } from "@/context/ProductCatalogContext";
 import { RequireProfile } from "@/components/RequireProfile";
+import { CampaignGate } from "@/components/CampaignGate";
 import { SessionLoadingScreen } from "@/components/SessionLoadingScreen";
 import Index from "./pages/Index.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
@@ -40,14 +41,37 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={<LoginRoute />} />
-            <Route path="/cuenta-incompleta" element={<AccountIncomplete />} />
-            <Route path="/completar-empleado" element={<CompleteEmployee />} />
+            <Route
+              path="/login"
+              element={
+                <CampaignGate>
+                  <LoginRoute />
+                </CampaignGate>
+              }
+            />
+            <Route
+              path="/cuenta-incompleta"
+              element={
+                <CampaignGate>
+                  <AccountIncomplete />
+                </CampaignGate>
+              }
+            />
+            <Route
+              path="/completar-empleado"
+              element={
+                <CampaignGate>
+                  <CompleteEmployee />
+                </CampaignGate>
+              }
+            />
             <Route
               path="/"
               element={
                 <RequireProfile>
-                  <Index />
+                  <CampaignGate>
+                    <Index />
+                  </CampaignGate>
                 </RequireProfile>
               }
             />
@@ -55,7 +79,9 @@ const App = () => (
               path="/producto/:sku"
               element={
                 <RequireProfile>
-                  <ProductDetail />
+                  <CampaignGate>
+                    <ProductDetail />
+                  </CampaignGate>
                 </RequireProfile>
               }
             />
