@@ -209,7 +209,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const emp = row.employee_number != null && String(row.employee_number).trim() !== "" ? String(row.employee_number) : null;
       const disp = row.display_name != null && String(row.display_name).trim() !== "" ? String(row.display_name) : null;
       if (!row || (!emp && !disp)) {
-        return { error: new Error("Usuario o contraseña inválidos.") };
+        return {
+          error: new Error(
+            "Contraseña incorrecta. Revisa el usuario (sucursal o nómina) y la clave; comprueba mayúsculas y espacios."
+          ),
+        };
       }
       if (!row.country_code) {
         return { error: new Error("Usuario sin país asignado.") };

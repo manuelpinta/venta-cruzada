@@ -13,6 +13,7 @@ import Login from "./pages/Login.tsx";
 import AccountIncomplete from "./pages/AccountIncomplete.tsx";
 import CompleteEmployee from "./pages/CompleteEmployee.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import AdminSucursalProgress from "./pages/AdminSucursalProgress.tsx";
 import { useAuth } from "@/context/AuthContext";
 import { needsEmployeeNumber } from "@/lib/profileGuards";
 
@@ -24,6 +25,9 @@ function LoginRoute() {
   if (user && profile) {
     if (needsEmployeeNumber(profile)) {
       return <Navigate to="/completar-empleado" replace />;
+    }
+    if (profile.role === "admin") {
+      return <Navigate to="/admin/resumen" replace />;
     }
     return <Navigate to="/" replace />;
   }
@@ -81,6 +85,16 @@ const App = () => (
                 <RequireProfile>
                   <CampaignGate>
                     <ProductDetail />
+                  </CampaignGate>
+                </RequireProfile>
+              }
+            />
+            <Route
+              path="/admin/resumen"
+              element={
+                <RequireProfile>
+                  <CampaignGate>
+                    <AdminSucursalProgress />
                   </CampaignGate>
                 </RequireProfile>
               }
