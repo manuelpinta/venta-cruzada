@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
@@ -43,7 +45,7 @@ export default function Login() {
         <div className="space-y-1">
           <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-blue-700">Pintacomex</p>
           <h1 className="text-2xl font-extrabold text-slate-900">Venta Cruzada PDV</h1>
-          <p className="text-xs text-slate-500">Ingresa con tu número de empleado y contraseña asignada.</p>
+          <p className="text-xs text-slate-500">Ingresa con tu usuario y contraseña asignada.</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -68,10 +70,15 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               className="border-slate-200 bg-slate-50"
               required
-              minLength={6}
+              minLength={4}
             />
           </div>
-          {msg && <p className="text-sm text-destructive">{msg}</p>}
+          {msg && (
+            <Alert variant="destructive" className="py-3">
+              <AlertCircle className="h-4 w-4" aria-hidden />
+              <AlertDescription>{msg}</AlertDescription>
+            </Alert>
+          )}
           <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold" disabled={busy}>
             {busy ? "Validando..." : "Entrar"}
           </Button>

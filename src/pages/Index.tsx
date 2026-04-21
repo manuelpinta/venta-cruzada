@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { Search, Timer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,10 @@ export default function Index() {
 
   const userDisplayName =
     profile?.display_name?.trim() || user?.username?.trim() || profile?.employee_number?.trim() || "";
+
+  if (profile?.role === "admin") {
+    return <Navigate to="/admin/resumen" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

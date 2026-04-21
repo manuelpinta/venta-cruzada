@@ -1,14 +1,16 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecommendationEditor } from "@/components/RecommendationEditor";
 import { SupportLinkButton } from "@/components/SupportLinkButton";
 import { useProductCatalog } from "@/context/ProductCatalogContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ProductDetail() {
   const { sku: skuParam } = useParams<{ sku: string }>();
   const sku = skuParam ? decodeURIComponent(skuParam) : "";
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const {
     getProduct,
     getRecommendations,
@@ -21,6 +23,10 @@ export default function ProductDetail() {
   } = useProductCatalog();
 
   const product = sku ? getProduct(sku) : undefined;
+
+  if (profile?.role === "admin") {
+    return <Navigate to="/admin/resumen" replace />;
+  }
 
   if (loading && sku) {
     return (
