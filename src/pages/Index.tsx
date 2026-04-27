@@ -38,7 +38,7 @@ export default function Index() {
     error,
   } = useProductCatalog();
   const { user, profile, signOut } = useAuth();
-  const { remainingMs } = useCampaignDeadline();
+  const { remainingMs } = useCampaignDeadline(profile?.country_code ?? countryCode);
 
   /** Con perfil en Supabase, el mercado es solo el del perfil (catálogo, top y recs de ese país). */
   const countryLocked = isSupabaseConfigured() && !!profile?.country_code;
