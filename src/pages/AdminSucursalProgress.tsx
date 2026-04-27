@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import {
   ArrowDown,
   ArrowUp,
+  CalendarClock,
   CheckCircle2,
   Download,
   Search,
@@ -15,6 +16,7 @@ import { SupportLinkButton } from "@/components/SupportLinkButton";
 import { useAuth } from "@/context/AuthContext";
 import { isSupabaseConfigured, requireSupabase } from "@/lib/supabase";
 import { COUNTRY_LABELS } from "@/data/countries";
+import { useCampaignDeadline } from "@/lib/campaignDeadline";
 import { cn } from "@/lib/utils";
 
 type ProgressRow = {
@@ -46,6 +48,16 @@ const GRUPO_TITLE: Record<"A" | "B", string> = {
   B: "Grupo B · puestos 26–50 del Top 50",
 };
 
+function toLocalDateTimeInputValue(ms: number): string {
+  const d = new Date(ms);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+}
+
 export default function AdminSucursalProgress() {
   const { user, profile, signOut } = useAuth();
   const [rows, setRows] = useState<ProgressRow[]>([]);
@@ -54,8 +66,21 @@ export default function AdminSucursalProgress() {
   const [filterQuery, setFilterQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("sucursal");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [deadlineInput, setDeadlineInput] = useState("");
+  const [deadlineBusy, setDeadlineBusy] = useState(false);
+  const [deadlineMsg, setDeadlineMsg] = useState<string | null>(null);
 
   const isAdmin = profile?.role === "admin";
+  const {
+    endMs: campaignEndMs,
+    loading: deadlineLoading,
+    refresh: refreshDeadline,
+  } = useCampaignDeadline(profile?.country_code);
+
+  useEffect(() => {
+    if (!campaignEndMs) return;
+    setDeadlineInput(toLocalDateTimeInputValue(campaignEndMs));
+  }, [campaignEndMs]);
 
   useEffect(() => {
     if (!user || !isAdmin || !isSupabaseConfigured()) {
@@ -159,6 +184,43 @@ export default function AdminSucursalProgress() {
     );
   }, [filteredSorted, profile]);
 
+  const saveDeadline = useCallback(
+    async (dateTimeLocal: string) => {
+      if (!user || !profile) return;
+      const parsed = Date.parse(dateTimeLocal);
+      if (!Number.isFinite(parsed)) {
+        setDeadlineMsg("Fecha/hora inválida.");
+        return;
+      }
+      setDeadlineBusy(true);
+      setDeadlineMsg(null);
+      const sb = requireSupabase();
+      const { error: rpcErr } = await sb.rpc("app_admin_set_campaign_deadline", {
+        p_admin_id: user.id,
+        p_end_at: new Date(parsed).toISOString(),
+      });
+      if (rpcErr) {
+        setDeadlineMsg(rpcErr.message);
+        setDeadlineBusy(false);
+        return;
+      }
+      await refreshDeadline();
+      setDeadlineInput(toLocalDateTimeInputValue(parsed));
+      setDeadlineMsg("Fecha de cierre actualizada.");
+      setDeadlineBusy(false);
+    },
+    [user, profile, refreshDeadline]
+  );
+
+  const handleSaveDeadline = useCallback(async () => {
+    await saveDeadline(deadlineInput);
+  }, [saveDeadline, deadlineInput]);
+
+  const handleAddOneDay = useCallback(async () => {
+    const next = toLocalDateTimeInputValue(campaignEndMs + 24 * 60 * 60 * 1000);
+    await saveDeadline(next);
+  }, [campaignEndMs, saveDeadline]);
+
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -212,6 +274,60 @@ export default function AdminSucursalProgress() {
       </header>
 
       <main className="mx-auto max-w-7xl px-5 lg:px-8 py-6 space-y-5">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-700">Control de campaña</p>
+              <p className="text-sm text-slate-700">
+                Cierre actual:{" "}
+                <strong>
+                  {new Date(campaignEndMs).toLocaleString("es-MX", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </strong>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 border-slate-200 bg-white"
+                onClick={() => void handleAddOneDay()}
+                disabled={deadlineBusy || deadlineLoading}
+              >
+                +1 día
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div className="relative max-w-sm w-full">
+              <CalendarClock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Input
+                type="datetime-local"
+                step={60}
+                value={deadlineInput}
+                onChange={(e) => setDeadlineInput(e.target.value)}
+                className="pl-9 bg-white border-slate-200"
+                aria-label="Fecha de cierre de campaña"
+                disabled={deadlineBusy || deadlineLoading}
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 bg-blue-700 hover:bg-blue-800 text-white"
+              onClick={() => void handleSaveDeadline()}
+              disabled={deadlineBusy || deadlineLoading || !deadlineInput}
+            >
+              {deadlineBusy ? "Guardando..." : "Guardar fecha"}
+            </Button>
+          </div>
+          {deadlineMsg && <p className="text-xs text-slate-600">{deadlineMsg}</p>}
+        </section>
+
         {!loading && summary && (
           <div className="space-y-4">
             {/* 1. Principal: ¿dónde está el problema? — conteo por sucursal */}
